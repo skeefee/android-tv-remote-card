@@ -10,6 +10,11 @@
 
 <img src="https://raw.githubusercontent.com/skeefee/android-tv-remote-card/main/screenrecording.gif" alt="Android TV Remote Card" width="360">
 
+---
+A Home Assistant Lovelace card for controlling Android TV devices, featuring a trackpad for intuitive navigation and customizable buttons for quick access to your favorite apps and commands.
+
+[![My Home Assistant](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?repository=android-tv-remote-card&owner=skeefee&category=Plugin)
+
 ## Features
 
 - **Trackpad** — drag to navigate, tap to select (OK)
