@@ -25,9 +25,9 @@
 
 ### Manual
 
-1. Copy `index.js` to `/config/www/android-tv-remote/index.js` on your HA instance
+1. Copy `android-tv-remote-card.js` to `/config/www/android-tv-remote-card/android-tv-remote-card.js` on your HA instance
 2. Go to **Settings → Dashboards → ⋮ → Resources → Add resource**
-   - URL: `/local/android-tv-remote/index.js`
+   - URL: `/local/android-tv-remote-card/android-tv-remote-card.js`
    - Type: `JavaScript module`
 3. Hard-refresh your browser (`Ctrl+Shift+R` / `Cmd+Shift+R`)
 
