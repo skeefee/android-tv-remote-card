@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Card Debug</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css">  
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      display: flex;
+      height: 100dvh;
+      background: #111;
+      font-family: monospace;
+      font-size: 13px;
+      color: #eee;
+    }
+    #preview {
+      width: 460px;
+      flex-shrink: 0;
+      padding: 1rem;
+      border-right: 1px solid #2a2a2a;
+      overflow-y: auto;
+    }
+    #panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 1rem;
+      gap: 1.2rem;
+      overflow: hidden;
+    }
+    h3 {
+      margin: 0 0 0.5rem;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #666;
+    }
+    .btns { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    button {
+      padding: 0.35rem 0.7rem;
+      background: #1e1e1e;
+      color: #ccc;
+      border: 1px solid #3a3a3a;
+      border-radius: 5px;
+      cursor: pointer;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    button:hover { background: #272727; border-color: #555; }
+    button.on { background: #0f2e0f; border-color: #3a7a3a; color: #6c6; }
+    input[type=number] {
+      width: 4rem;
+      padding: 0.35rem 0.5rem;
+      background: #1e1e1e;
+      color: #ccc;
+      border: 1px solid #3a3a3a;
+      border-radius: 5px;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    #log {
+      flex: 1;
+      overflow-y: auto;
+      background: #080808;
+      border: 1px solid #1e1e1e;
+      border-radius: 6px;
+      padding: 0.4rem 0.6rem;
+    }
+    .entry {
+      display: grid;
+      grid-template-columns: 5.5rem 14rem 1fr;
+      gap: 0.5rem;
+      padding: 3px 0;
+      border-bottom: 1px solid #111;
+      align-items: start;
+    }
+    .entry .t  { color: #444; }
+    .entry .s  { color: #5af; }
+    .entry .d  { color: #999; word-break: break-all; }
+    .empty { color: #333; padding: 0.5rem 0; }
+  </style>
+</head>
+<body>
+
+<div id="preview"></div>
+
+<div id="panel">
+  <div>
+    <h3>TV state</h3>
+    <div class="btns" id="state-btns">
+      <button onclick="setTvState('off')">off</button>
+      <button onclick="setTvState('on')" class="on">on</button>
+      <button onclick="setTvState('playing')">playing</button>
+      <button onclick="setTvState('paused')">paused</button>
+      <button onclick="setTvState('idle')">idle</button>
+      <button onclick="setTvState('unavailable')">unavailable</button>
+    </div>
+  </div>
+  <div>
+    <h3>Volume</h3>
+    <div class="btns">
+      <button id="mute-btn" onclick="toggleMute()">muted: false</button>
+      <span style="color:#666;font-size:12px;align-self:center">volume_level: <span id="vol-out">50%</span></span>
+    </div>
+  </div>
+  <div>
+    <h3>Display</h3>
+    <div class="btns">
+      <button id="title-btn" onclick="toggleHideTitle()">hide_title: false</button>
+      <label style="color:#666;font-size:12px;display:flex;align-items:center;gap:0.4rem">
+        max_volume
+        <input type="number" id="max-volume-input" min="1" max="100" value="100" onchange="setMaxVolume(this.value)">
+        %
+      </label>
+      <label style="color:#666;font-size:12px;display:flex;align-items:center;gap:0.4rem">
+        height
+        <input type="number" id="height-input" min="200" max="1200" step="10" placeholder="auto" onchange="setHeight(this.value)" style="width:5rem">
+        px
+      </label>
+      <label style="color:#666;font-size:12px;display:flex;align-items:center;gap:0.4rem">
+        name
+        <input type="text" id="name-input" placeholder="(entity name)" onchange="setName(this.value)" style="width:8rem;padding:0.35rem 0.5rem;background:#1e1e1e;color:#ccc;border:1px solid #3a3a3a;border-radius:5px;font-family:monospace;font-size:12px">
+      </label>
+    </div>
+  </div>
+  <div style="flex:1;display:flex;flex-direction:column;min-height:0">
+    <h3 style="display:flex;justify-content:space-between;align-items:center">
+      Service calls
+      <button onclick="clearLog()" style="font-size:10px;padding:0.2rem 0.5rem">clear</button>
+    </h3>
+    <div id="log"><div class="empty">No calls yet.</div></div>
+  </div>
+</div>
+
+<!-- Mock HA custom elements — must be defined before index.js runs -->
+<script>
+  class HaIcon extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({ mode: 'open' });
+    }
+    static get observedAttributes() { return ['icon']; }
+    connectedCallback() { this._render(); }
+    attributeChangedCallback() { this._render(); }
+    _render() {
+      const raw = this.getAttribute('icon') ?? '';
+      const cls = 'mdi mdi-' + raw.replace(/^mdi:/, '');
+      this.shadowRoot.innerHTML = `
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css">
+        <style>
+          :host { display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+          .i { font-size: var(--mdc-icon-size, 24px); color: inherit; }
+        </style>
+        <span class="${cls} i"></span>
+      `;
+    }
+  }
+  customElements.define('ha-icon', HaIcon);
+
+  class HaCard extends HTMLElement {
+    connectedCallback() {
+      this.style.cssText = 'display:block;border-radius:12px;overflow:hidden';
+    }
+  }
+  customElements.define('ha-card', HaCard);
+</script>
+
+<script src="android-tv-remote-card.js"></script>
+
+<script>
+  // --- Mock state ---
+  const tvEntity = {
+    state: 'on',
+    attributes: { friendly_name: 'Living Room TV', is_volume_muted: false, volume_level: 0.5 },
+  };
+
+  const mockStates = {
+    'media_player.android_tv': tvEntity,
+    'remote.android_tv': { state: 'on', attributes: {} },
+  };
+
+  // --- Mock hass ---
+  const hass = {
+    get states() { return mockStates; },
+    callService(domain, service, data) {
+      logCall(domain, service, data);
+      // Reflect service calls back into mock state
+      if (domain === 'media_player') {
+        if (service === 'turn_on')  { tvEntity.state = 'on';  syncStateButtons('on'); }
+        if (service === 'turn_off') { tvEntity.state = 'off'; syncStateButtons('off'); }
+        if (service === 'volume_mute') {
+          tvEntity.attributes = { ...tvEntity.attributes, is_volume_muted: data.is_volume_muted };
+          document.getElementById('mute-btn').textContent = `muted: ${data.is_volume_muted}`;
+          document.getElementById('mute-btn').classList.toggle('on', data.is_volume_muted);
+        }
+        if (service === 'volume_set') {
+          tvEntity.attributes = { ...tvEntity.attributes, volume_level: data.volume_level };
+          document.getElementById('vol-out').textContent = `${Math.round(data.volume_level * 100)}%`;
+        }
+      }
+      pushHass();
+    },
+  };
+
+  // --- Init card ---
+  const card = document.createElement('androidtv-remote-card');
+  let cardConfig = {
+    entity: 'media_player.android_tv',
+    custom_buttons: [
+      { icon: 'mdi:youtube',   activity: 'com.google.android.youtube.tv' },
+      { icon: 'mdi:netflix',   activity: 'com.netflix.ninja' },
+      { icon: 'mdi:skip-next', command: 'MEDIA_NEXT' },
+    ],
+  };
+  card.setConfig(cardConfig);
+  card.hass = hass;
+  document.getElementById('preview').appendChild(card);
+
+  function pushHass() { card.hass = hass; }
+
+  // --- Debug controls ---
+  window.setTvState = (s) => {
+    tvEntity.state = s;
+    syncStateButtons(s);
+    pushHass();
+  };
+
+  window.setMaxVolume = (val) => {
+    cardConfig = { ...cardConfig, max_volume: Math.max(1, Math.min(100, parseInt(val) || 100)) };
+    card.setConfig(cardConfig);
+    card.hass = hass;
+  };
+
+  window.setHeight = (val) => {
+    const h = parseInt(val);
+    cardConfig = { ...cardConfig, height: h > 0 ? h : undefined };
+    card.setConfig(cardConfig);
+    card.hass = hass;
+  };
+
+  window.setName = (val) => {
+    cardConfig = { ...cardConfig, name: val.trim() || undefined };
+    card.setConfig(cardConfig);
+    card.hass = hass;
+  };
+
+  window.toggleHideTitle = () => {
+    cardConfig = { ...cardConfig, hide_title: !cardConfig.hide_title };
+    card.setConfig(cardConfig);
+    card.hass = hass;
+    const btn = document.getElementById('title-btn');
+    btn.textContent = `hide_title: ${cardConfig.hide_title ?? false}`;
+    btn.classList.toggle('on', !!cardConfig.hide_title);
+  };
+
+  window.toggleMute = () => {
+    const next = !tvEntity.attributes.is_volume_muted;
+    tvEntity.attributes = { ...tvEntity.attributes, is_volume_muted: next };
+    document.getElementById('mute-btn').textContent = `muted: ${next}`;
+    document.getElementById('mute-btn').classList.toggle('on', next);
+    pushHass();
+  };
+
+  function syncStateButtons(active) {
+    document.querySelectorAll('#state-btns button').forEach(b => {
+      b.classList.toggle('on', b.textContent === active);
+    });
+  }
+
+  // --- Log ---
+  function logCall(domain, service, data) {
+    const log = document.getElementById('log');
+    const empty = log.querySelector('.empty');
+    if (empty) empty.remove();
+
+    const entry = document.createElement('div');
+    entry.className = 'entry';
+    const t = new Date().toLocaleTimeString([], { hour12: false });
+    entry.innerHTML = `
+      <span class="t">${t}</span>
+      <span class="s">${domain}.${service}</span>
+      <span class="d">${JSON.stringify(data)}</span>
+    `;
+    log.prepend(entry);
+  }
+
+  window.clearLog = () => {
+    document.getElementById('log').innerHTML = '<div class="empty">No calls yet.</div>';
+  };
+</script>
+
+</body>
+</html>
