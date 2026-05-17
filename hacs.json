@@ -1,7 +1,7 @@
 {
 	"name": "Android TV Remote Card",
 	"content_in_root": true,
-	"homeassistant": "2026.3.0",
+	"homeassistant": "2023.9.0",
 	"filename": "android-tv-remote-card.js",
 	"render_readme": true,
 	"hide_default_branch": true
